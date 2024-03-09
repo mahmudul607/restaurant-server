@@ -28,7 +28,8 @@ async function run() {
     await client.connect();
 
     const menuCollections = client.db("restaurantDB").collection("menu");
-
+    const cartsCollections = client.db("restaurantDB").collection("carts");
+// all get operations here
     app.get("/menu", async (req, res) => {
         const result = await menuCollections.find().toArray();
         res.send(result);
@@ -52,6 +53,16 @@ async function run() {
       const result = await menuCollections.find(query).toArray();
       res.send(result);
 
+    })
+    app.get("/carts", async (req, res) => {
+      const result = await cartsCollections.find().toArray();
+      res.send(result);
+    });
+// all post operation in here
+    app.post('/carts', async (req,res)=>{
+      const itemId = req.body;
+      const result = await cartsCollections.insertOne(itemId);
+      res.send(result);
     })
 
 
