@@ -10,7 +10,7 @@ app.use(express.json());
 
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.c8drypi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -30,7 +30,8 @@ async function run() {
     const menuCollections = client.db("restaurantDB").collection("menu");
     const reviewsCollections = client.db("restaurantDB").collection("reviews");
     const cartsCollections = client.db("restaurantDB").collection("carts");
-// all get operations here
+    const usersCollections = client.db("restaurantDB").collection("users");
+// all get operations here--------------------------------------------------------------------------------------------------
     app.get("/menu", async (req, res) => {
         const result = await menuCollections.find().toArray();
         res.send(result);
@@ -56,17 +57,39 @@ async function run() {
 
     })
     app.get("/carts", async (req, res) => {
-      const result = await cartsCollections.find().toArray();
+      const email= req.query.email;
+      const query = {email : email};
+      const result = await cartsCollections.find(query).toArray();
       res.send(result);
     });
     app.get("/reviews", async (req, res) => {
       const result = await reviewsCollections.find().toArray();
       res.send(result);
     })
-// all post operation in here
+// all post operation in here ----------------------------------------------------------------------------------------------
     app.post('/carts', async (req,res)=>{
       const itemId = req.body;
       const result = await cartsCollections.insertOne(itemId);
+      res.send(result);
+    })
+
+    app.post('/users', async (req,res)=>{
+      const user = req.body;
+      const query = {email: user.email};
+
+      const existingUser = await usersCollections.findOne(query);
+      if(existingUser) {
+        return res.send({message: "User already exists", insertId: null})
+      }
+      const result = await usersCollections.insertOne(user);
+      res.send(result);
+    });
+
+    // All delete operations api is here ------------------------------------------------------------------------------------
+    app.delete("/carts/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {_id : new ObjectId(id) };
+      const result = await cartsCollections.deleteOne(query);
       res.send(result);
     })
 
