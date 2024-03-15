@@ -40,12 +40,12 @@ const verifyToken = (req, res, next) => {
  
 console.log("Inside Verify token:", req.headers.authorization)
   if(!req.headers.authorization){
-    return res.status(401).send({message: "Forbidden Access"})
+    return res.status(401).send({message: "Unauthorized Access"})
   }
   const token = req.headers.authorization.split(" ")[1]
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
     if(err){
-      return res.status(401).send({message: "Forbidden Access"});
+      return res.status(401).send({message: "Unauthorized Access"});
     }
     req.decoded = decoded;
     console.log('decoded:', decoded);
@@ -54,6 +54,18 @@ console.log("Inside Verify token:", req.headers.authorization)
 
 
 
+}
+const verifyAdmin = async (req, res, next) => {
+  const email = req.decoded.email;
+  const query = {email: email}
+  const user = await usersCollections.findOne(query);
+  const isAdmin = user?.role === 'admin';
+  if(!isAdmin) {
+    return res.status(403).send({message: 'Unauthorized Access'});
+
+
+  }
+  next();
 }
 
 // JWT Authorization -----------------------------------------------------------------------------------------------------
@@ -66,10 +78,10 @@ app.post("/jwt", async (req, res) => {
 
 
 // all get operations here--------------------------------------------------------------------------------------------------
-  app.get('/users/admin/:email', verifyToken, async (req, res) => {
+  app.get('/users/admin/:email', verifyToken,  async (req, res) => {
     const email = req.params.email;
     if(!email === req.decoded.email ){
-      return res.status(403).send({message: 'unauthorized access'});
+      return res.status(403).send({message: 'Forbidden access'});
 
     }
     const query = {email: email};
@@ -104,7 +116,7 @@ app.post("/jwt", async (req, res) => {
       res.send(result);
 
     })
-    app.get("/carts", async (req, res) => {
+    app.get("/carts",  async (req, res) => {
       const email= req.query.email;
       const query = {email : email};
       const result = await cartsCollections.find(query).toArray();
@@ -115,7 +127,7 @@ app.post("/jwt", async (req, res) => {
       res.send(result);
     })
 
-    app.get("/users", verifyToken, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await usersCollections.find().toArray();
       res.send(result);
     })
@@ -139,6 +151,11 @@ app.post("/jwt", async (req, res) => {
       res.send(result);
     });
 
+    app.post('/menu', verifyToken, verifyAdmin, async(req, res)=>{
+      const menuItem = req.body;
+      const result = await menuCollections.insertOne(menuItem);
+      res.send(result);
+    })
     // All delete operations api is here ------------------------------------------------------------------------------------
     app.delete("/carts/:id", async (req, res) => {
       const id = req.params.id;
