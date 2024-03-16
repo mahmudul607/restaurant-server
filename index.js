@@ -33,92 +33,104 @@ async function run() {
     const cartsCollections = client.db("restaurantDB").collection("carts");
     const usersCollections = client.db("restaurantDB").collection("users");
 
-// middlewares
+    // middlewares
 
-// verify token
-const verifyToken = (req, res, next) => {
- 
-console.log("Inside Verify token:", req.headers.authorization)
-  if(!req.headers.authorization){
-    return res.status(401).send({message: "Unauthorized Access"})
-  }
-  const token = req.headers.authorization.split(" ")[1]
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
-    if(err){
-      return res.status(401).send({message: "Unauthorized Access"});
-    }
-    req.decoded = decoded;
-    console.log('decoded:', decoded);
-    next();
-  })
+    // verify token
+    const verifyToken = (req, res, next) => {
 
-
-
-}
-const verifyAdmin = async (req, res, next) => {
-  const email = req.decoded.email;
-  const query = {email: email}
-  const user = await usersCollections.findOne(query);
-  const isAdmin = user?.role === 'admin';
-  if(!isAdmin) {
-    return res.status(403).send({message: 'Unauthorized Access'});
+      console.log("Inside Verify token:", req.headers.authorization)
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "Unauthorized Access" })
+      }
+      const token = req.headers.authorization.split(" ")[1]
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "Unauthorized Access" });
+        }
+        req.decoded = decoded;
+        console.log('decoded:', decoded);
+        next();
+      })
 
 
-  }
-  next();
-}
-
-// JWT Authorization -----------------------------------------------------------------------------------------------------
-
-app.post("/jwt", async (req, res) => {
-  const user = req.body;
-  const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'})
-  res.send({token});
-})
-
-
-// all get operations here--------------------------------------------------------------------------------------------------
-  app.get('/users/admin/:email', verifyToken,  async (req, res) => {
-    const email = req.params.email;
-    if(!email === req.decoded.email ){
-      return res.status(403).send({message: 'Forbidden access'});
 
     }
-    const query = {email: email};
-    const user = await usersCollections.findOne(query);
-    let admin = false;
-    if(user){
-      admin = user?.role === 'admin'
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email }
+      const user = await usersCollections.findOne(query);
+      const isAdmin = user?.role === 'admin';
+      if (!isAdmin) {
+        return res.status(403).send({ message: 'Unauthorized Access' });
+
+
+      }
+      next();
     }
-    res.send({admin});
-  })
-    app.get("/menu", async (req, res) => {
-        const result = await menuCollections.find().toArray();
-        res.send(result);
+
+    // JWT Authorization -----------------------------------------------------------------------------------------------------
+
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+      res.send({ token });
     })
-   
+
+
+    // all get operations here--------------------------------------------------------------------------------------------------
+    app.get('/users/admin/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (!email === req.decoded.email) {
+        return res.status(403).send({ message: 'Forbidden access' });
+
+      }
+      const query = { email: email };
+      const user = await usersCollections.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === 'admin'
+      }
+      res.send({ admin });
+    })
+    app.get("/menu", async (req, res) => {
+      const result = await menuCollections.find().toArray();
+      res.send(result);
+    })
+
+
+    app.get("/menu/:id", async (req, res) => {
+      const id = req.params.id;
+      const firstQuery= {_id  : id};
+      const secondQuery = {_id: new ObjectId(id) };
+      const result = await menuCollections.findOne({$or:[firstQuery, secondQuery]});
+      res.send(result);
+    })
+    
+
+
+
     app.get('/menu/category/:id', async (req, res) => {
       const id = req.params.id;
-      const query = {'category' : id};
-       const page = parseInt(req.query.page);
+      const query = { 'category': id };
+      const page = parseInt(req.query.page);
       const size = parseInt(req.query.size);
       const result = await menuCollections.find(query)
-      .skip(page * size)
-      .limit(size)
-      .toArray();
+        .skip(page * size)
+        .limit(size)
+        .toArray();
       res.send(result);
     });
 
     app.get("/menu/category/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {'category' : id};
+      const query = { 'category': id };
       const result = await menuCollections.find(query).toArray();
       res.send(result);
 
     })
-    app.get("/carts",  async (req, res) => {
-      const email= req.query.email;
-      const query = {email : email};
+    app.get("/carts", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
       const result = await cartsCollections.find(query).toArray();
       res.send(result);
     });
@@ -132,26 +144,28 @@ app.post("/jwt", async (req, res) => {
       res.send(result);
     })
 
-// all post operation in here ----------------------------------------------------------------------------------------------
-    app.post('/carts', async (req,res)=>{
+
+
+    // all post operation in here ----------------------------------------------------------------------------------------------
+    app.post('/carts', async (req, res) => {
       const itemId = req.body;
       const result = await cartsCollections.insertOne(itemId);
       res.send(result);
     })
 
-    app.post('/users', async (req,res)=>{
+    app.post('/users', async (req, res) => {
       const user = req.body;
-      const query = {email: user.email};
+      const query = { email: user.email };
 
       const existingUser = await usersCollections.findOne(query);
-      if(existingUser) {
-        return res.send({message: "User already exists", insertId: null})
+      if (existingUser) {
+        return res.send({ message: "User already exists", insertId: null })
       }
       const result = await usersCollections.insertOne(user);
       res.send(result);
     });
 
-    app.post('/menu', verifyToken, verifyAdmin, async(req, res)=>{
+    app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
       const menuItem = req.body;
       const result = await menuCollections.insertOne(menuItem);
       res.send(result);
@@ -159,29 +173,68 @@ app.post("/jwt", async (req, res) => {
     // All delete operations api is here ------------------------------------------------------------------------------------
     app.delete("/carts/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id : new ObjectId(id) };
+      const query = { _id: new ObjectId(id) };
       const result = await cartsCollections.deleteOne(query);
       res.send(result);
     })
 
     app.delete("/users/:id", async (req, res) => {
       const user = req.params.id;
-      const query = {_id: new ObjectId(user)};
+      const query = { _id: new ObjectId(user) };
       const result = await usersCollections.deleteOne(query);
       res.send(result);
     })
+    app.delete("/menu/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const firstQuery = { _id: new ObjectId(id) };
+      const secondQuery = {_id : id}
+      const result = await menuCollections.deleteOne({$or:[firstQuery, secondQuery]});
+      res.send(result);
 
+    })
     // patch on the mongodb database
 
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updatedDoc = {
-        $set:{
+        $set: {
           role: 'admin'
         }
       }
       const result = await usersCollections.updateOne(query, updatedDoc);
+      res.send(result);
+    })
+    app.patch("/menu/:id", async (req, res) => {
+      const id = req.params.id;
+      const firstQuery = { _id: id};
+      const secondQuery = { _id: new ObjectId(id) };
+      const updateInfo = req.body;
+      let updatedDoc;
+      if(updateInfo.image){
+         updatedDoc = {
+          $set: {
+            name: updateInfo.name,
+            recipe: updateInfo.recipe,
+            price: updateInfo.price,
+            category: updateInfo.category,
+            image: updateInfo.image
+          }
+        }
+      }
+      else{
+        updatedDoc = {
+          $set: {
+            name: updateInfo.name,
+            recipe: updateInfo.recipe,
+            price: updateInfo.price,
+            category: updateInfo.category,
+            
+          }
+        }
+
+      }
+      const result = await menuCollections.updateOne({$or:[firstQuery, secondQuery]}, updatedDoc);
       res.send(result);
     })
 
@@ -196,10 +249,10 @@ app.post("/jwt", async (req, res) => {
 }
 run().catch(console.dir);
 
-app.get('/', (req, res) =>{
-    res.send('Boss is setting');
+app.get('/', (req, res) => {
+  res.send('Boss is setting');
 });
 
-app.listen(port, () =>{
-    console.log(`Bistro boss is setting on port ${port}`);
+app.listen(port, () => {
+  console.log(`Bistro boss is setting on port ${port}`);
 })
