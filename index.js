@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 require('dotenv').config()
 
 // middleware
@@ -67,7 +68,22 @@ async function run() {
       }
       next();
     }
+    // payment api here ========================================================================================================
 
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'USD',
+        payment_method_types: ['card']
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      })
+    });
     // JWT Authorization -----------------------------------------------------------------------------------------------------
 
     app.post("/jwt", async (req, res) => {
@@ -100,12 +116,12 @@ async function run() {
 
     app.get("/menu/:id", async (req, res) => {
       const id = req.params.id;
-      const firstQuery= {_id  : id};
-      const secondQuery = {_id: new ObjectId(id) };
-      const result = await menuCollections.findOne({$or:[firstQuery, secondQuery]});
+      const firstQuery = { _id: id };
+      const secondQuery = { _id: new ObjectId(id) };
+      const result = await menuCollections.findOne({ $or: [firstQuery, secondQuery] });
       res.send(result);
     })
-    
+
 
 
 
@@ -187,8 +203,8 @@ async function run() {
     app.delete("/menu/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const firstQuery = { _id: new ObjectId(id) };
-      const secondQuery = {_id : id}
-      const result = await menuCollections.deleteOne({$or:[firstQuery, secondQuery]});
+      const secondQuery = { _id: id }
+      const result = await menuCollections.deleteOne({ $or: [firstQuery, secondQuery] });
       res.send(result);
 
     })
@@ -207,12 +223,12 @@ async function run() {
     })
     app.patch("/menu/:id", async (req, res) => {
       const id = req.params.id;
-      const firstQuery = { _id: id};
+      const firstQuery = { _id: id };
       const secondQuery = { _id: new ObjectId(id) };
       const updateInfo = req.body;
       let updatedDoc;
-      if(updateInfo.image){
-         updatedDoc = {
+      if (updateInfo.image) {
+        updatedDoc = {
           $set: {
             name: updateInfo.name,
             recipe: updateInfo.recipe,
@@ -222,19 +238,19 @@ async function run() {
           }
         }
       }
-      else{
+      else {
         updatedDoc = {
           $set: {
             name: updateInfo.name,
             recipe: updateInfo.recipe,
             price: updateInfo.price,
             category: updateInfo.category,
-            
+
           }
         }
 
       }
-      const result = await menuCollections.updateOne({$or:[firstQuery, secondQuery]}, updatedDoc);
+      const result = await menuCollections.updateOne({ $or: [firstQuery, secondQuery] }, updatedDoc);
       res.send(result);
     })
 
