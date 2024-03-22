@@ -33,6 +33,7 @@ async function run() {
     const reviewsCollections = client.db("restaurantDB").collection("reviews");
     const cartsCollections = client.db("restaurantDB").collection("carts");
     const usersCollections = client.db("restaurantDB").collection("users");
+    const paymentsCollections = client.db("restaurantDB").collection("payments");
 
     // middlewares
 
@@ -87,13 +88,24 @@ async function run() {
         clientSecret: paymentIntent.client_secret,
       })
     });
+
+    app.post('/payments', async (req, res)=>{
+      const payment = req.body;
+      const paymentResult = await paymentsCollections.insertOne(payment);
+
+      const query = {_id:{
+        $in: payment.cartIds.map(id => new ObjectId(id))
+      }};
+      const deleteResult = await cartsCollections.deleteMany(query);
+      res.send({paymentResult, deleteResult});
+    })
     // JWT Authorization -----------------------------------------------------------------------------------------------------
 
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
       res.send({ token });
-    })
+    }) 
 
 
     // all get operations here--------------------------------------------------------------------------------------------------
@@ -115,7 +127,12 @@ async function run() {
       const result = await menuCollections.find().toArray();
       res.send(result);
     })
+// booking loading in admin route secure api
 
+app.get("/bookings", verifyToken, verifyAdmin, async (req, res) => {
+  const result = await paymentsCollections.find().toArray();
+  res.send(result);
+});
 
     app.get("/menu/:id", async (req, res) => {
       const id = req.params.id;
