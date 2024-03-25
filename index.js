@@ -133,6 +133,10 @@ app.get("/bookings", verifyToken, verifyAdmin, async (req, res) => {
   const result = await paymentsCollections.find().toArray();
   res.send(result);
 });
+app.get("/bookings/:email", verifyToken, async(req, res)=>{
+  const email = req.params.email;
+  
+})
 
     app.get("/menu/:id", async (req, res) => {
       const id = req.params.id;
